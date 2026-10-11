@@ -5,6 +5,7 @@ Planning home for this fork: everything we write that is not app code. Upstream'
 Create each subfolder when its first file arrives:
 
 - `GLOSSARY.md`: domain terms (domain-modeling skill).
+- `agents/`: config for the engineering skills (issue tracker, triage labels, domain docs).
 - `adr/`: architecture decisions, `NNNN-slug.md`.
 - `research/`: findings from the research skill, one file per question.
 - `spec/`: PRD and feature specs.
