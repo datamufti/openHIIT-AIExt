@@ -1,0 +1,12 @@
+# aiext
+
+Planning home for this fork: everything we write that is not app code. Upstream's own docs stay in `docs/`.
+
+Create each subfolder when its first file arrives:
+
+- `GLOSSARY.md`: domain terms (domain-modeling skill).
+- `adr/`: architecture decisions, `NNNN-slug.md`.
+- `research/`: findings from the research skill, one file per question.
+- `spec/`: PRD and feature specs.
+
+Where plugin code lives is still open: it gets an ADR once the plugin architecture is designed.
