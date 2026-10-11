@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenHIIT 1.7.0 Architecture Baseline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column (~70ch) with figures allowed wider; a field-guide feel, timer colours as the only accents. */
+:root {
+  --bg: #f5f7f4;
+  --surface: #ffffff;
+  --fg: #1a201c;
+  --muted: #5a665e;
+  --line: #d3dbd5;
+  --line-strong: #8d9a91;
+  --work: #1d7a4b;
+  --work-soft: #d7efe1;
+  --rest: #5f7488;
+  --rest-soft: #dde6ee;
+  --brk: #a8690f;
+  --brk-soft: #f6e6c9;
+  --code-bg: #e9eee9;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111512; --surface: #181e1a; --fg: #e3eae4; --muted: #9aa79e;
+    --line: #2b342e; --line-strong: #5d6b62;
+    --work: #52c48c; --work-soft: #183a28; --rest: #93a8bb; --rest-soft: #222e39;
+    --brk: #e3a648; --brk-soft: #3b2c12; --code-bg: #1f2722;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111512; --surface: #181e1a; --fg: #e3eae4; --muted: #9aa79e;
+  --line: #2b342e; --line-strong: #5d6b62;
+  --work: #52c48c; --work-soft: #183a28; --rest: #93a8bb; --rest-soft: #222e39;
+  --brk: #e3a648; --brk-soft: #3b2c12; --code-bg: #1f2722;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 16px/1.6 var(--font-body);
+  padding-inline: 20px; padding-block: 40px 80px;
+}
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.9rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0; }
+section { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 500 0.75rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+header { display: grid; gap: 14px; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--work); }
+a:focus-visible { outline: 2px solid var(--work); outline-offset: 2px; }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0; }
+.facts div { background: var(--surface); padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.facts dt { font: 500 0.72rem/1.2 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.facts dd { margin: 0; font-size: 0.95rem; }
+
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.diagram svg { display: block; width: 100%; height: auto; min-width: 720px; color: var(--line-strong); }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 72ch; }
+
+/* SVG parts, coloured from tokens */
+svg .box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+svg .box.dim { fill: none; stroke-dasharray: 4 3; }
+svg .box.key { stroke: var(--work); stroke-width: 1.6; }
+svg .frame { fill: none; stroke: var(--line-strong); stroke-dasharray: 6 4; stroke-width: 1; }
+svg .lane { stroke: var(--line-strong); stroke-dasharray: 3 4; stroke-width: 1; }
+svg .loop { fill: none; stroke: var(--brk); stroke-width: 1.2; stroke-dasharray: 5 3; }
+svg .edge { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+svg .edge.hot { stroke: var(--work); stroke-width: 1.6; }
+svg text { fill: var(--fg); font-family: var(--font-body); font-size: 12px; }
+svg .b { font-weight: 600; }
+svg .s { font-size: 10.5px; fill: var(--muted); }
+svg .m { font-family: var(--font-mono); font-size: 11px; }
+svg .ms { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+svg .lbl { font-size: 11px; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+svg .lbl.hot { fill: var(--work); font-weight: 500; }
+svg .tag { font-family: var(--font-mono); font-size: 10.5px; fill: var(--brk); }
+svg .frame-t { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); letter-spacing: 0.04em; }
+svg .seg-work { fill: var(--work-soft); stroke: var(--work); }
+svg .seg-rest { fill: var(--rest-soft); stroke: var(--rest); }
+svg .seg-break { fill: var(--brk-soft); stroke: var(--brk); }
+svg .seg-ready { fill: var(--code-bg); stroke: var(--line-strong); }
+svg .tick { stroke: var(--line-strong); }
+svg .head { fill: var(--muted); }
+svg .head.hot { fill: var(--work); }
+
+.surprises { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.surprises li { display: grid; gap: 2px; padding-left: 14px; border-left: 2px solid var(--line); }
+.surprises li strong { font-weight: 600; }
+
+footer { font-size: 0.85rem; color: var(--muted); display: grid; gap: 6px; max-width: 72ch; }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <span class="eyebrow">Baseline · OpenHIIT 1.7.0+56 · upstream f95cf50 (2026-08-08) · documented 2026-10-11</span>
+    <h1>OpenHIIT Architecture Baseline</h1>
+    <p class="lede">How upstream OpenHIIT was put together before this fork changed anything: which parts talk to each other, how a Timer turns into Intervals, what happens while one runs, and what gets stored. A frozen snapshot: don't edit it as the code changes; add a new dated baseline instead.</p>
+  </header>
+
+  <section aria-labelledby="glance">
+    <h2 id="glance">At a glance</h2>
+    <dl class="facts">
+      <div><dt>Framework</dt><dd>Flutter (Dart). Builds for Android, iOS, web, Linux, macOS and Windows.</dd></div>
+      <div><dt>Size</dt><dd>73 Dart files, about 6,700 lines in <code>lib/</code>.</dd></div>
+      <div><dt>State</dt><dd><code>provider</code> package: four ChangeNotifier providers.</dd></div>
+      <div><dt>Storage</dt><dd>SQLite file <code>core1.db</code> (schema v8) plus SharedPreferences.</dd></div>
+      <div><dt>Timer engine</dt><dd><code>background_hiit_timer</code> 1.2.3, a separate package by the upstream author.</dd></div>
+      <div><dt>Tests</dt><dd>8 end-to-end integration tests. No unit tests.</dd></div>
+    </dl>
+    <p class="prose">The code is organised by feature. <code>lib/features/</code> has one folder per screen (home, edit_timer, run_timer, settings, import_export_timers, reorder_timers, whats_new). <code>lib/core/</code> holds what the screens share: models, providers, the database layer and the Interval calculation.</p>
+  </section>
+
+  <section aria-labelledby="big">
+    <h2 id="big">1. The big picture</h2>
+    <p class="prose">Most of the app is a plain screens → providers → repositories → database stack. The exception is the running Timer. Its clock runs in a separate background process owned by the timer package, and the app only sees the result.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 980 440" role="img" aria-label="Screens talk to providers, providers to repositories, repositories to core1.db. The Run timer screen hands Intervals to a separate service isolate through a temporary database, receives TimerState snapshots every 100 ms, and pauses it through a SharedPreferences flag that the service polls.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="head"/></marker>
+            <marker id="a1h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="head hot"/></marker>
+          </defs>
+          <!-- frames -->
+          <rect class="frame" x="10" y="12" width="630" height="320" rx="10"/>
+          <text class="frame-t" x="26" y="32">APP · MAIN ISOLATE</text>
+          <rect class="frame" x="760" y="12" width="210" height="320" rx="10"/>
+          <text class="frame-t" x="776" y="32">TIMER ENGINE · SERVICE</text>
+          <text class="ms" x="776" y="318">background_hiit_timer</text>
+
+          <!-- screens -->
+          <rect class="box" x="26" y="44" width="110" height="60" rx="6"/><text x="81" y="79" text-anchor="middle">Settings</text>
+          <rect class="box" x="146" y="44" width="110" height="60" rx="6"/><text x="201" y="79" text-anchor="middle">Import / export</text>
+          <rect class="box" x="266" y="44" width="110" height="60" rx="6"/><text x="321" y="72" text-anchor="middle">Home</text><text class="s" x="321" y="88" text-anchor="middle">Timer list</text>
+          <rect class="box" x="386" y="44" width="110" height="60" rx="6"/><text x="441" y="79" text-anchor="middle">Editor</text>
+          <rect class="box key" x="506" y="44" width="120" height="60" rx="6"/><text class="b" x="566" y="72" text-anchor="middle">Run timer</text><text class="s" x="566" y="88" text-anchor="middle">Countdown widget</text>
+
+          <!-- providers -->
+          <rect class="box" x="26" y="140" width="120" height="44" rx="6"/><text class="m" x="86" y="166" text-anchor="middle">ThemeProvider</text>
+          <rect class="box" x="166" y="140" width="130" height="44" rx="6"/><text class="m" x="231" y="166" text-anchor="middle">TimerProvider</text>
+          <rect class="box dim" x="316" y="140" width="114" height="44" rx="6"/><text class="m" x="373" y="159" text-anchor="middle" style="fill:var(--muted)">IntervalProvider</text><text class="s" x="373" y="174" text-anchor="middle">unused when running</text>
+          <rect class="box" x="440" y="140" width="130" height="44" rx="6"/><text class="m" x="505" y="166" text-anchor="middle" style="font-size:10.5px">TimerCreationProvider</text>
+
+          <!-- logic + repos -->
+          <rect class="box" x="166" y="230" width="130" height="44" rx="6"/><text x="231" y="250" text-anchor="middle">Repositories</text><text class="s" x="231" y="265" text-anchor="middle">one per table</text>
+          <rect class="box key" x="316" y="230" width="270" height="44" rx="6"/><text class="m" x="451" y="250" text-anchor="middle">generateIntervalsFromTimer()</text><text class="s" x="451" y="265" text-anchor="middle">pure function: Timer → Intervals</text>
+
+          <!-- stores -->
+          <rect class="box" x="166" y="370" width="180" height="50" rx="6"/><text class="m b" x="256" y="391" text-anchor="middle">core1.db</text><text class="s" x="256" y="408" text-anchor="middle">SQLite · schema v8 · 4 tables</text>
+          <rect class="box" x="430" y="370" width="180" height="50" rx="6"/><text class="m b" x="520" y="391" text-anchor="middle">SharedPreferences</text><text class="s" x="520" y="408" text-anchor="middle">theme · volume · pause</text>
+
+          <!-- service -->
+          <rect class="box key" x="780" y="40" width="170" height="130" rx="6"/>
+          <text class="b" x="865" y="64" text-anchor="middle">Tick loop</text>
+          <text class="s" x="865" y="84" text-anchor="middle">every 100 ms</text>
+          <text class="s" x="865" y="104" text-anchor="middle">counts down, advances</text>
+          <text class="s" x="865" y="120" text-anchor="middle">Intervals, plays sounds,</text>
+          <text class="s" x="865" y="136" text-anchor="middle">sends TimerState</text>
+          <rect class="box" x="780" y="240" width="170" height="50" rx="6"/><text x="865" y="261" text-anchor="middle">Temp Interval DB</text><text class="s" x="865" y="278" text-anchor="middle">rewritten on every start</text>
+
+          <!-- edges: main isolate -->
+          <path class="edge" d="M81 104 V140" marker-end="url(#a1)"/>
+          <path class="edge" d="M201 104 V140" marker-end="url(#a1)"/><text class="lbl" x="207" y="126">import</text>
+          <path class="edge" d="M300 104 L270 140" marker-end="url(#a1)"/><text class="lbl" x="292" y="126">reads list</text>
+          <path class="edge" d="M470 104 V140" marker-end="url(#a1)"/><text class="lbl" x="464" y="126" text-anchor="end">edits draft</text>
+          <path class="edge" d="M505 184 V230" marker-end="url(#a1)"/><text class="lbl" x="511" y="212">save / start</text>
+          <path class="edge" d="M330 230 L285 184" marker-end="url(#a1)"/><text class="lbl" x="318" y="207">save</text>
+          <path class="edge hot" d="M578 230 V104" marker-end="url(#a1h)"/><text class="lbl hot" x="572" y="126" text-anchor="end">Intervals</text>
+          <path class="edge" d="M231 184 V230" marker-end="url(#a1)"/><text class="lbl" x="237" y="212">CRUD</text>
+          <path class="edge" d="M231 274 V370" marker-end="url(#a1)"/><text class="lbl" x="237" y="326">SQL</text>
+          <path class="edge" d="M616 104 V350 H520 V370" marker-end="url(#a1)"/><text class="lbl" x="610" y="326" text-anchor="end">pause flag</text>
+
+          <!-- edges: across the process boundary -->
+          <path class="edge" d="M626 54 H780" marker-end="url(#a1)"/><text class="lbl" x="703" y="48" text-anchor="middle">start · skip · restart</text>
+          <path class="edge hot" d="M780 76 H626" marker-end="url(#a1h)"/><text class="lbl hot" x="703" y="70" text-anchor="middle">TimerState / 100 ms</text>
+          <path class="edge" d="M626 96 H700 V265 H780" marker-end="url(#a1)"/><text class="lbl" x="706" y="182">writes</text><text class="lbl" x="706" y="196">Intervals</text>
+          <path class="edge" d="M865 240 V170" marker-end="url(#a1)"/><text class="lbl" x="871" y="210">reads</text>
+          <path class="edge" d="M610 395 H960 V105 H950" marker-end="url(#a1)"/><text class="lbl" x="700" y="389" text-anchor="middle">re-read on every tick</text>
+        </svg>
+      </div>
+      <figcaption>The green paths carry the workout itself. Intervals are worked out in the main app and handed over through a temporary database. After that, the only thing coming back is a <code>TimerState</code> snapshot ten times a second. Pause is the odd one out: the app writes a SharedPreferences flag and the service re-reads it on every tick. <code>IntervalProvider</code> exists, but nothing on the run path reads it.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="gen">
+    <h2 id="gen">2. How a Timer becomes Intervals</h2>
+    <p class="prose">A saved <strong>Timer</strong> stores settings: a list of activity names, work, rest and break times, warmup, cooldown and a repeat count. It does not store a list of segments. One pure function, <code>generateIntervalsFromTimer</code>, expands those settings into the ordered <strong>Intervals</strong> the engine plays. Saving, starting and the preview all call it, so it is the one place that defines what a workout looks like.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 880 190" role="img" aria-label="Example: three activities, 40 seconds work, 20 rest, 60 second break, repeated once. Get ready, then round 1 of Burpees, Rest, Squats, Rest, Push-ups, then a Break, then round 2 of the same, 6 minutes 30 seconds in total.">
+          <!-- axis -->
+          <line class="tick" x1="50" y1="40" x2="830" y2="40"/>
+          <g class="s">
+            <line class="tick" x1="50" y1="36" x2="50" y2="44"/><text class="s" x="50" y="30" text-anchor="middle">0:00</text>
+            <line class="tick" x1="170" y1="36" x2="170" y2="44"/><text class="s" x="170" y="30" text-anchor="middle">1:00</text>
+            <line class="tick" x1="290" y1="36" x2="290" y2="44"/><text class="s" x="290" y="30" text-anchor="middle">2:00</text>
+            <line class="tick" x1="410" y1="36" x2="410" y2="44"/><text class="s" x="410" y="30" text-anchor="middle">3:00</text>
+            <line class="tick" x1="530" y1="36" x2="530" y2="44"/><text class="s" x="530" y="30" text-anchor="middle">4:00</text>
+            <line class="tick" x1="650" y1="36" x2="650" y2="44"/><text class="s" x="650" y="30" text-anchor="middle">5:00</text>
+            <line class="tick" x1="770" y1="36" x2="770" y2="44"/><text class="s" x="770" y="30" text-anchor="middle">6:00</text>
+            <line class="tick" x1="830" y1="36" x2="830" y2="44"/><text class="s" x="830" y="30" text-anchor="middle">6:30</text>
+          </g>
+          <!-- segments, 2px per second -->
+          <rect class="seg-ready" x="50" y="56" width="20" height="44"/>
+          <rect class="seg-work" x="70" y="56" width="80" height="44"/><text x="110" y="82" text-anchor="middle">Burpees</text>
+          <rect class="seg-rest" x="150" y="56" width="40" height="44"/><text class="s" x="170" y="82" text-anchor="middle">Rest</text>
+          <rect class="seg-work" x="190" y="56" width="80" height="44"/><text x="230" y="82" text-anchor="middle">Squats</text>
+          <rect class="seg-rest" x="270" y="56" width="40" height="44"/><text class="s" x="290" y="82" text-anchor="middle">Rest</text>
+          <rect class="seg-work" x="310" y="56" width="80" height="44"/><text x="350" y="82" text-anchor="middle">Push-ups</text>
+          <rect class="seg-break" x="390" y="56" width="120" height="44"/><text x="450" y="82" text-anchor="middle">Break</text>
+          <rect class="seg-work" x="510" y="56" width="80" height="44"/><text x="550" y="82" text-anchor="middle">Burpees</text>
+          <rect class="seg-rest" x="590" y="56" width="40" height="44"/><text class="s" x="610" y="82" text-anchor="middle">Rest</text>
+          <rect class="seg-work" x="630" y="56" width="80" height="44"/><text x="670" y="82" text-anchor="middle">Squats</text>
+          <rect class="seg-rest" x="710" y="56" width="40" height="44"/><text class="s" x="730" y="82" text-anchor="middle">Rest</text>
+          <rect class="seg-work" x="750" y="56" width="80" height="44"/><text x="790" y="82" text-anchor="middle">Push-ups</text>
+          <!-- rounds -->
+          <path class="edge" d="M70 112 V120 H390 V112"/><text x="230" y="138" text-anchor="middle">Round 1</text>
+          <path class="edge" d="M510 112 V120 H830 V112"/><text x="670" y="138" text-anchor="middle">Round 2 (restarts = 1)</text>
+          <!-- notes -->
+          <path class="edge" d="M60 100 V156"/><text class="s" x="66" y="168">Get ready, 10 s</text>
+          <text class="s" x="830" y="168" text-anchor="end">last Interval gets the end sound</text>
+        </svg>
+      </div>
+      <figcaption>Example Timer: three activities, 40 s work, 20 s rest, 60 s break, <code>restarts = 1</code>. The shape is fixed: get ready, optional warmup, then each round alternates work and rest (no rest after the last activity), with a break between rounds, then optional cooldown. Each work Interval is named after its activity. Everything else gets a literal name such as "Rest" or "Break".</figcaption>
+    </figure>
+    <p class="prose">The code has no separate field for an Interval's type. Colours, "is this work?" and the sound rules all compare the Interval's <em>name</em> to strings such as <code>"Rest"</code> and <code>"Break"</code>. An activity named "Rest" would be coloured and counted as rest. This matters for the AI generator, which will be producing names.</p>
+  </section>
+
+  <section aria-labelledby="run">
+    <h2 id="run">3. What happens while a Timer runs</h2>
+    <p class="prose">This is the part a plugin system finds hardest. The run screen doesn't own the clock. It starts a background service (an Android foreground service, so the workout keeps going with the screen off), sends commands to it, and redraws from whatever snapshot arrives.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 920 650" role="img" aria-label="Sequence: Run timer builds Countdown, which writes Intervals to a temp database and starts the service. The service reads them, then every 100 ms checks the pause flag, counts down and plays sounds, and sends a TimerState snapshot that the screen redraws from. Pause writes a preference, skip and restart send messages. At the end the status 'End' keeps repeating and the screen shows the completion panel. Leaving the screen stops the service.">
+          <defs>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="head"/></marker>
+            <marker id="a3h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="head hot"/></marker>
+          </defs>
+          <!-- lanes -->
+          <rect class="box key" x="15" y="16" width="150" height="40" rx="6"/><text class="b" x="90" y="34" text-anchor="middle">Run timer screen</text><text class="s" x="90" y="49" text-anchor="middle">RunTimerState</text>
+          <rect class="box" x="195" y="16" width="150" height="40" rx="6"/><text x="270" y="34" text-anchor="middle">Countdown widget</text><text class="s" x="270" y="49" text-anchor="middle">package, main isolate</text>
+          <rect class="box" x="375" y="16" width="150" height="40" rx="6"/><text x="450" y="41" text-anchor="middle">Temp Interval DB</text>
+          <rect class="box" x="545" y="16" width="150" height="40" rx="6"/><text x="620" y="41" text-anchor="middle">SharedPreferences</text>
+          <rect class="box key" x="725" y="16" width="150" height="40" rx="6"/><text class="b" x="800" y="34" text-anchor="middle">Service isolate</text><text class="s" x="800" y="49" text-anchor="middle">tick loop</text>
+          <line class="lane" x1="90" y1="56" x2="90" y2="640"/>
+          <line class="lane" x1="270" y1="56" x2="270" y2="640"/>
+          <line class="lane" x1="450" y1="56" x2="450" y2="640"/>
+          <line class="lane" x1="620" y1="56" x2="620" y2="640"/>
+          <line class="lane" x1="800" y1="56" x2="800" y2="640"/>
+
+          <!-- start -->
+          <path class="edge" d="M90 96 H270" marker-end="url(#a3)"/><text class="lbl" x="180" y="89" text-anchor="middle">build with Intervals</text>
+          <path class="edge" d="M270 134 H450" marker-end="url(#a3)"/><text class="lbl" x="360" y="127" text-anchor="middle">clear + write Intervals</text>
+          <path class="edge" d="M270 172 H800" marker-end="url(#a3)"/><text class="lbl" x="535" y="165" text-anchor="middle">start foreground service</text>
+          <path class="edge" d="M800 210 H450" marker-end="url(#a3)"/><text class="lbl" x="625" y="203" text-anchor="middle">read Intervals</text>
+
+          <!-- loop -->
+          <rect class="loop" x="30" y="232" width="870" height="172" rx="6"/>
+          <text class="tag" x="40" y="249">LOOP · every 100 ms</text>
+          <path class="edge" d="M800 270 H620" marker-end="url(#a3)"/><text class="lbl" x="710" y="263" text-anchor="middle">re-read 'pause'</text>
+          <path class="edge" d="M800 298 H840 V314 H800" marker-end="url(#a3)"/><text class="lbl" x="792" y="311" text-anchor="end">count down · advance Interval · play sounds</text>
+          <path class="edge hot" d="M800 346 H270" marker-end="url(#a3h)"/><text class="lbl hot" x="535" y="339" text-anchor="middle">invoke('update', TimerState)</text>
+          <path class="edge hot" d="M270 384 H90" marker-end="url(#a3h)"/><text class="lbl hot" x="180" y="377" text-anchor="middle">redraw from snapshot</text>
+
+          <!-- controls -->
+          <path class="edge" d="M90 432 H620" marker-end="url(#a3)"/><text class="lbl" x="355" y="425" text-anchor="middle">pause tap: write 'pause'</text>
+          <path class="edge" d="M90 470 H800" marker-end="url(#a3)"/><text class="lbl" x="445" y="463" text-anchor="middle">skip · restart: service message</text>
+
+          <!-- end -->
+          <path class="edge" d="M800 508 H270" marker-end="url(#a3)"/><text class="lbl" x="535" y="501" text-anchor="middle">status "End", repeated every 100 ms</text>
+          <path class="edge" d="M270 546 H90" marker-end="url(#a3)"/><text class="lbl" x="180" y="539" text-anchor="middle">show completion + confetti</text>
+          <path class="edge" d="M90 584 H270" marker-end="url(#a3)"/><text class="lbl" x="180" y="577" text-anchor="middle">leave screen: dispose</text>
+          <path class="edge" d="M270 622 H800" marker-end="url(#a3)"/><text class="lbl" x="535" y="615" text-anchor="middle">stop service</text>
+        </svg>
+      </div>
+      <figcaption>One run, top to bottom. The engine never says "Interval changed" or "workout finished". The screen only gets a snapshot with the current Interval index, the time left, a status string and the paused flag. Anything that wants events has to compare each snapshot with the previous one.</figcaption>
+    </figure>
+    <ul class="surprises prose">
+      <li><strong>Pause, skip and restart take different routes.</strong> Pause goes through a SharedPreferences flag that the service re-reads every tick. Skip and restart are messages to the service. The screen also keeps its own copy of the paused state.</li>
+      <li><strong>The run screen is required.</strong> Leaving it stops the service, so nothing can run a Timer without that screen open.</li>
+      <li><strong>The Intervals can't change mid-run.</strong> They are copied into the engine's database at start. Changing them means restarting the service with a new list.</li>
+      <li><strong>Time is counted in ticks.</strong> Elapsed time is 100 ms per tick, not a real clock, so a late tick stretches the workout slightly.</li>
+      <li><strong>The finish callback is never called.</strong> The package declares <code>onFinished</code> but never calls it. Completion is the screen noticing that the status is "End".</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="data">
+    <h2 id="data">4. What gets stored, and what gets shared</h2>
+    <p class="prose">A Timer lives in three places with three different shapes: in memory as <code>TimerType</code>, on the device across four tables, and in export files as JSON. The Intervals are stored too, but they're always derived from the settings, so export leaves them out and import rebuilds them.</p>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 900 360" role="img" aria-label="TimerType with its time and sound settings is saved into TimerTable, TimeSettingsTable and SoundSettingsTable in core1.db, and the derived Intervals into IntervalTable. Export writes TimerType as JSON without Intervals; import reads it back and regenerates them.">
+          <defs>
+            <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="head"/></marker>
+          </defs>
+          <!-- export route -->
+          <path class="edge" d="M145 40 V20 H755 V40" marker-start="url(#a4)" marker-end="url(#a4)"/>
+          <text class="lbl" x="450" y="16" text-anchor="middle">export: toJson() · import: fromJson()</text>
+
+          <!-- in memory -->
+          <rect class="box key" x="20" y="40" width="250" height="56" rx="6"/><text class="m b" x="32" y="58">TimerType</text><text class="ms" x="32" y="74">id · name · timerIndex · activeIntervals</text><text class="ms" x="32" y="88">activities[] · showMinutes · color</text>
+          <rect class="box" x="20" y="120" width="250" height="56" rx="6"/><text class="m b" x="32" y="138">TimerTimeSettings</text><text class="ms" x="32" y="154">getReady · work · rest · break</text><text class="ms" x="32" y="168">warmup · cooldown · restarts</text>
+          <rect class="box" x="20" y="200" width="250" height="56" rx="6"/><text class="m b" x="32" y="218">TimerSoundSettings</text><text class="ms" x="32" y="234">work · rest · halfway · end</text><text class="ms" x="32" y="248">countdown · break  (sound ids)</text>
+          <rect class="box dim" x="20" y="270" width="250" height="56" rx="6"/><text class="m" x="32" y="288">List&lt;IntervalType&gt;</text><text class="ms" x="32" y="304">derived, never edited directly</text><text class="ms" x="32" y="318">name · time · color · sounds</text>
+          <text class="frame-t" x="20" y="348">IN MEMORY</text>
+
+          <!-- db -->
+          <rect class="frame" x="318" y="32" width="254" height="302" rx="8"/>
+          <rect class="box" x="330" y="40" width="230" height="56" rx="6"/><text class="m b" x="342" y="62">TimerTable</text><text class="ms" x="342" y="80">+ totalTime, intervals (counts)</text>
+          <rect class="box" x="330" y="120" width="230" height="56" rx="6"/><text class="m b" x="342" y="142">TimeSettingsTable</text><text class="ms" x="342" y="160">row keyed by timerId</text>
+          <rect class="box" x="330" y="200" width="230" height="56" rx="6"/><text class="m b" x="342" y="222">SoundSettingsTable</text><text class="ms" x="342" y="240">row keyed by timerId</text>
+          <rect class="box" x="330" y="270" width="230" height="56" rx="6"/><text class="m b" x="342" y="292">IntervalTable</text><text class="ms" x="342" y="310">keyed by workoutId (= timer id)</text>
+          <text class="frame-t" x="330" y="352">CORE1.DB · SCHEMA v8</text>
+
+          <path class="edge" d="M270 68 H330" marker-end="url(#a4)"/><text class="lbl" x="300" y="61" text-anchor="middle">saves</text>
+          <path class="edge" d="M270 148 H330" marker-end="url(#a4)"/>
+          <path class="edge" d="M270 228 H330" marker-end="url(#a4)"/>
+          <path class="edge" d="M270 298 H330" marker-end="url(#a4)"/>
+
+          <!-- json -->
+          <rect class="box" x="630" y="40" width="250" height="216" rx="6"/>
+          <text class="m b" x="642" y="60">timers.json</text>
+          <text class="ms" x="642" y="84">[ {</text>
+          <text class="ms" x="656" y="100">"id", "name", "timerIndex",</text>
+          <text class="ms" x="656" y="116">"totalTime", "intervals",</text>
+          <text class="ms" x="656" y="132">"activeIntervals", "activities",</text>
+          <text class="ms" x="656" y="148">"showMinutes", "color",</text>
+          <text class="ms" x="656" y="164">"timeSettings": { … },</text>
+          <text class="ms" x="656" y="180">"soundSettings": { … }</text>
+          <text class="ms" x="642" y="196">} ]</text>
+          <text class="s" x="642" y="222">Missing keys get defaults.</text>
+          <text class="s" x="642" y="238">Unknown keys are dropped.</text>
+          <text class="s" x="630" y="292">No Intervals in the file.</text>
+          <text class="s" x="630" y="308">Import regenerates them.</text>
+          <text class="frame-t" x="630" y="348">EXPORT FILE</text>
+        </svg>
+      </div>
+      <figcaption>Desktop builds (Linux, Windows) open the database in memory, so Timers there don't survive a restart. The <code>workoutId</code> column name is left over from the older <code>Workout</code> model. That model only survives to migrate very old installs.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="also">
+    <h2 id="also">5. Also worth knowing</h2>
+    <ul class="surprises prose">
+      <li><strong>There's already a finish moment.</strong> The completion panel plays the end sound and fires 10 seconds of confetti. The "peak moment" work would change this rather than build it from scratch.</li>
+      <li><strong>A Timer can only start from the editor.</strong> The only code that opens the run screen is the editor's Start button.</li>
+      <li><strong>One screen is unused.</strong> <code>ListIntervals</code> is defined but nothing opens it.</li>
+      <li><strong>Upstream is quiet.</strong> The last upstream change to <code>lib/</code> was on 25 May 2026. Since then upstream has only merged dependency and CI updates.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>How to change any of this without breaking existing behaviour: <a href="changing-safely.md">changing-safely.md</a>.</p>
+    <p>Sources: the code at upstream <code>f95cf50</code>, and the <a href="https://github.com/datamufti/openHIIT-AIExt/blob/research/openhiit-seams/aiext/research/openhiit-seams.md">"Where plugins could hook into OpenHIIT" research note</a>, which has file and line references for every claim here.</p>
+  </footer>
+</main>
+</body>
+</html>
